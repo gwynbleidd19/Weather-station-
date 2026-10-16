@@ -1,0 +1,35 @@
+# ---- Build artifacts ----
+*.o
+*.elf
+*.bin
+*.hex
+*.map
+*.d
+*.su
+*.list
+build/
+Build/
+Debug/
+Release/
+
+# ---- IDE ----
+.vscode/
+.idea/
+*.ioc.bak
+
+# ---- OS ----
+Thumbs.db
+.DS_Store
+
+# ---- Python ----
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+firmware/Drivers/
+firmware/Middlewares/
+firmware/build/
+build/
+host/.venv/
+host/__pycache__/

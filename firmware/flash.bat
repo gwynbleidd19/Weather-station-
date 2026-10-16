@@ -1,0 +1,1 @@
+openocd -f interface/stlink.cfg -f target/stm32f1x.cfg -c "program build/firmware.bin 0x08000000 verify reset exit"
