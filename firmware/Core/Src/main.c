@@ -1,8 +1,11 @@
 #include "stm32f103xe.h"
 #include "stdint.h"
 
-// prototypes 
+// global variables 
 
+volatile uint32_t tick_ms = 0;
+
+// prototypes 
 void clockConfig(void);
 void GPIOconfig(void);
 void ADC_init(void);
@@ -56,6 +59,9 @@ void clockConfig(void){
     GPIOB->CRH |= (GPIO_CRH_MODE12_0 | GPIO_CRH_MODE12_1);
     GPIOB->CRH |= (GPIO_CRH_MODE13_0|GPIO_CRH_MODE13_1  |  GPIO_CRH_CNF13_0);
     GPIOB->CRH |= (GPIO_CRH_MODE14_0 | GPIO_CRH_MODE14_1);
+
+    GPIOC->CRH &= ~(GPIO_CRH_MODE13 | GPIO_CRH_CNF13);
+    GPIOC->CRH |= GPIO_CRH_MODE13_0;
 }
 
 void DS_WriteByte(uint8_t data){
@@ -237,13 +243,6 @@ void ESP_readResponse(void){
   }
 }
 
-// Простая задержка в миллисекундах (busy-wait, ~72 МГц)
-void delay_ms(uint32_t ms){
-  while(ms--){
-    for(volatile uint32_t i = 0; i < 16000; i++);
-  }
-}
-
 // Очистка приёмного буфера USART3 (убрать "мусор" стартового сообщения ESP)
 void UART3_flush(void){
   while(USART3->SR & USART_SR_RXNE){ (void)USART3->DR; }
@@ -386,6 +385,19 @@ void TIM2_Init(void){
   TIM2->CR1 |= TIM_CR1_CEN;
 }
 
+void SysTick_Handler(void){
+  tick_ms++;
+}
+
+uint32_t millis(void){
+  return tick_ms;
+}
+
+void delay_ms(uint32_t ms){
+  uint32_t start = millis();
+  while ((millis() - start) < ms);
+  } 
+
 void HC_Trig(void){   
   GPIOB->BRR = (1 << 8);
   GPIOB->BSRR = (1 << 8);
@@ -424,6 +436,14 @@ int main(void) {
     GPIOconfig(); 
     UART_init();
     UART3_init();
+    SysTick_config();
+
+    if (SysTick_Config(SystemCoreClock / 1000) != 0){
+      while (1){
+        UARTsendString("Systick error\r\n");
+        for (int i = 0; i < 1000000; i++);
+      }
+    }
 
     // ESP-01 нужно время на загрузку после подачи питания.
     // AT-команды, посланные раньше, молча теряются.
@@ -449,20 +469,27 @@ int main(void) {
     }
 
     while (1){
-        UARTsendString("--- loop ---\r\n");
+        GPIOC->BRR = (1 << 13);
+        delay_ms(500);
+        
+        GPIOC->BSRR = (1 << 13);
+        delay_ms(500);
+        
 
-        ESP_sendCmd("AT");
-        ESP_readResponseMs(1000);
+        //UARTsendString("--- loop ---\r\n");
 
-        ESP_sendCmd("AT+CWMODE?");
-        ESP_readResponseMs(1000);
+        //ESP_sendCmd("AT");
+        //ESP_readResponseMs(1000);
 
-        ESP_sendCmd("AT+CIPSTATUS");
-        ESP_readResponseMs(1000);
+        //ESP_sendCmd("AT+CWMODE?");
+        //ESP_readResponseMs(1000);
 
-        ESP_sendCmd("AT+CIPMUX?");                     // '?' — иначе ERROR
-        ESP_readResponseMs(1000);
+        //ESP_sendCmd("AT+CIPSTATUS");
+        //ESP_readResponseMs(1000);
 
-        delay_ms(2000);
+        //ESP_sendCmd("AT+CIPMUX?");                     // '?' — иначе ERROR
+        //ESP_readResponseMs(1000);
+
+        //delay_ms(2000);
     }
 }
